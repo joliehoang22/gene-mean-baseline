@@ -1,0 +1,24 @@
+# data and model files never belong in the repo
+*.parquet
+*.rds
+*.RDS
+*.vcf.gz
+*.tbi
+*.csi
+*.fa
+*.fai
+*.h5
+*.pth
+*.save
+*.gct.gz
+
+# participant-level sample tables
+sample_mapping*.tsv
+samples_*.tsv
+
+logs/
+__pycache__/
+.Rhistory
+.RData
+.Rproj.user/
+.DS_Store
