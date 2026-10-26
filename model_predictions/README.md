@@ -2,7 +2,7 @@
 
 ## Gene panels and CAGE tracks
 
-Run these before the predictions, after `gene_mean_baseline`.
+These scripts prepare the list of genes and CAGE tracks for the models to predict.
 
 | File | Description |
 |------|-------------|
