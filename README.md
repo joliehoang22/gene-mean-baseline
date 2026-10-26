@@ -1,6 +1,6 @@
-# Arithmetic means outperform AI at ranking genes by expression
+# Arithmetic means outperform AI at predicting gene expression
 
-This repository contains the code for Hoang *et al.*, "Arithmetic means outperform AI at ranking genes by expression".
+This repository contains the code for Hoang *et al.*, "Arithmetic means outperform AI at predicting gene expression".
 
 We compare four genomic deep learning models that predict gene expression from DNA sequence (Enformer, Basenji2, ExPecto and Xpresso) with a gene-mean baseline, which is the average expression of each gene in a separate dataset from the same tissue. Performance is measured with the cross-gene correlation, the correlation between the predicted expression of a set of genes and the expression measured in the same person's tissue.
 
