@@ -8,7 +8,7 @@ We compare four genomic deep learning models that predict gene expression from D
 
 1. Each model is run on every individual's phased genome (both haplotypes, predictions averaged) and scored against that individual's brain or blood RNA-seq. Gene-mean baselines from the reference cohorts listed below are scored against the same samples.
 2. Each model is also run on the hg38 reference sequence, for the same genes and samples, to compare personalized and reference-genome predictions.
-3. To measure what a model adds to a gene-mean baseline, we fit two linear models per sample across genes, `observed ~ gene_mean` (null) and `observed ~ gene_mean + model` (full), and report ΔR² = R²full − R²null. We repeat this with reference-genome predictions (Supp. Figs 5–6).
+3. To measure what a model adds to a gene-mean baseline, we fit two linear models per sample across genes, `observed ~ gene_mean` (null) and `observed ~ gene_mean + model` (full), and report ΔR² = R²full − R²null.
 
 
 ## Cohorts
@@ -26,20 +26,20 @@ Models and gene-mean baselines are scored against the measured expression of the
 
 ### Reference cohorts
 
-Gene-mean baselines are computed from these datasets.
+Gene-mean baselines are computed from these datasets. In Fig. 1, both study cohorts of a tissue are compared with the same baselines. The ΔR² analysis (Fig. 2, Supp. Fig. 5) adds a baseline from the other cohort of the same tissue.
 
 | Dataset | Tissue | Samples | Reference for |
 |---|---|---|---|
 | LBP postmortem donors (LBP PM) | prefrontal cortex | 243 | LBP LIV brain, ROSMAP |
 | GTEx v10 | frontal cortex (BA9) | 269 | LBP LIV brain, ROSMAP |
 | Mount Sinai Brain Bank (MSBB) | frontal pole (BA10) | 325 | LBP LIV brain, ROSMAP |
-| ROSMAP | dorsolateral prefrontal cortex | 639 | LBP LIV brain |
-| LBP LIV | prefrontal cortex | 275 | ROSMAP |
 | FANTOM5 | brain | 7 libraries | LBP LIV brain, ROSMAP |
+| ROSMAP | dorsolateral prefrontal cortex | 639 | LBP LIV brain (ΔR² only) |
+| LBP LIV | prefrontal cortex | 275 | Supp. Fig. 4 only |
 | GTEx v10 | whole blood | 803 | LBP LIV blood, COVID-19 |
-| COVID-19 | whole blood | 1,392 | LBP LIV blood |
-| LBP LIV | whole blood | 243 | COVID-19 |
 | FANTOM5 | blood | 4 libraries | LBP LIV blood, COVID-19 |
+| COVID-19 | whole blood | 1,392 | LBP LIV blood (ΔR² only) |
+| LBP LIV | whole blood | 243 | COVID-19 (ΔR² only) |
 
 We evaluated the protein-coding genes expressed in each tissue that are present in every gene-mean source, FANTOM5 included: 13,061 genes in brain and 10,562 in blood.
 

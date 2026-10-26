@@ -82,12 +82,10 @@ build <- function(metric) {
     scale_y_continuous(breaks = seq(-0.01, 0.01, 0.005)) +
     coord_flip(ylim = c(-0.01, 0.01)) +
     facet_wrap(~ cohort, ncol = 2) +
-    labs(title = sprintf("Does personalizing the input sequence change cross-gene accuracy? (%s)", stat_word),
-         subtitle = "per-sample paired difference (personalized - reference genome); above 0 means personalization helps.\nSame gene panel and samples in both arms. Paired Wilcoxon, Bonferroni-adjusted.",
-         x = NULL, y = ylab_expr) +
+    labs(x = NULL, y = ylab_expr) +
     theme_minimal(base_size = 13) +
     theme(panel.grid.major.y = element_blank(), legend.position = "top",
-          strip.text = element_text(face = "bold"), plot.title = element_text(face = "bold"))
+          strip.text = element_text(face = "bold"))
 
   fn <- sprintf("paired_diff_personal_vs_reference_allcohorts_%s", metric)
   ggsave(file.path(PLOT_DIR, paste0(fn, ".pdf")), p, width = 15, height = 8)

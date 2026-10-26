@@ -12,8 +12,7 @@ The gene-mean baselines here always come from other cohorts, because a cohort's 
 
 | File | Description |
 |------|-------------|
-| `01_delta_r2_discovery.R` | LBP LIV brain (GTEx, ROSMAP, MSBB baselines) and LBP LIV blood (GTEx, COVID-19). Draws Fig. 4, writes the Supp. Table 1 summary |
-| `02_delta_r2_replication.R` | ROSMAP (GTEx, MSBB, LBP PM) and COVID-19 (GTEx, LBP LIV blood). Writes the Supp. Table 2 summary |
-| `03_delta_r2_reference_genome.R` | Repeats 01 and 02 with reference-genome predictions in place of personalized ones, on the same samples, genes and baselines. Draws Supp. Figs 5–6 |
+| `01_delta_r2_discovery.R` | LBP LIV brain (GTEx, ROSMAP, MSBB, LBP PM and FANTOM5 baselines) and LBP LIV blood (GTEx, COVID-19, FANTOM5). Writes the tables for Fig. 2 and Supp. Fig. 5 and the summaries in Supp. Tables 2–3 |
+| `02_delta_r2_replication.R` | ROSMAP (GTEx, MSBB, LBP PM, FANTOM5) and COVID-19 (GTEx, LBP LIV blood, FANTOM5). Writes the table for Supp. Fig. 5 and the summary in Supp. Table 3 |
 
-All three use the shared gene panel from `cross_gene_correlation` (13,061 brain / 10,562 blood genes). The medians at the end of `01` and `02` are the values in Supp. Tables 1 and 2.
+Both use the shared gene panel from `cross_gene_correlation` (13,061 brain / 10,562 blood genes). The figures are drawn by `figures/Fig2.R` and `figures/SuppFig5.R`.

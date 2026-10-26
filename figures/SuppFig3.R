@@ -1,102 +1,88 @@
 #!/usr/bin/env Rscript
-## Supp. Fig. 3: gene-mean baseline from each dataset scored against every other
-## dataset, on the scored panel (bed, all cohorts and FANTOM5 symbols intersected).
-suppressPackageStartupMessages({library(ggplot2); library(patchwork)})
-
+## Supp. Fig. 3: per-sample paired difference between each model and the gene-mean
+## baseline from its own training data (model minus baseline). Paired Wilcoxon,
+## Bonferroni-adjusted over the 12 tests. Panels ordered like Fig. 1.
+## Reads cross_gene_correlation/01_score_all_cohorts.R output.
+suppressPackageStartupMessages({library(ggplot2); library(dplyr)})
 source("config/paths.R")   # BASE, PLOT_DIR, FANTOM5_MEANS
-OUT_DIR  <- file.path(BASE, "Null")
-FANF     <- FANTOM5_MEANS
-dir.create(PLOT_DIR, showWarnings = FALSE, recursive = TRUE)
+SRC <- file.path(BASE, "evaluation", "allcohorts", "arm_scores_allcohorts_qcexact.csv")
+d   <- read.csv(SRC, stringsAsFactors = FALSE)
 
-strip <- function(x) sub("\\..*", "", x)
-FAN   <- read.csv(FANF, stringsAsFactors = FALSE)
+COHORT_LEV <- c("LBP-Brain", "ROSMAP-Brain", "LBP-Blood", "COVID-Blood")
+stopifnot(all(COHORT_LEV %in% unique(d$cohort)))
+fam_cols <- c(Enformer = "#0072B2", Basenji2 = "#009E73", ExPecto = "#D55E00")
 
-prep <- function(rds, ord, bed, fcol, tag) {
-  M <- readRDS(file.path(BASE, rds))[ord]
-  for (n in names(M)) {
-    rownames(M[[n]]) <- strip(rownames(M[[n]]))
-    M[[n]] <- M[[n]][!duplicated(rownames(M[[n]])), , drop = FALSE]
-  }
-  b   <- read.table(file.path(BASE, bed), sep = "\t", stringsAsFactors = FALSE,
-                    col.names = c("chrom","tss","strand","gene_id","gene_name"))
-  sym <- setNames(b$gene_name, strip(b$gene_id))
-  p   <- Reduce(intersect, lapply(M, rownames))
-  p   <- intersect(p, strip(b$gene_id))
-  n0  <- length(p)
-  p   <- p[sym[p] %in% FAN$gene]
-  cat(sprintf("\n%s: %d genes after cohorts, %d after FANTOM5 (-%d)\n", tag, n0, length(p), n0 - length(p)))
-  M   <- lapply(M, function(m) m[p, , drop = FALSE])
-  fan <- log2(FAN[[fcol]][match(sym[p], FAN$gene)] + 1)
-  list(M = M, panel = p, fan = fan)
+PAIRS <- list(
+  list(model = "Enformer", gm_brain = "Gene-mean: FANTOM5 CAGE", gm_blood = "Gene-mean: FANTOM5 CAGE"),
+  list(model = "Basenji2", gm_brain = "Gene-mean: FANTOM5 CAGE", gm_blood = "Gene-mean: FANTOM5 CAGE"),
+  list(model = "ExPecto",  gm_brain = "Gene-mean: GTEx",         gm_blood = "Gene-mean: GTEx Blood"))
+PAIR_LEV <- c("Enformer  -  FANTOM5 CAGE", "Basenji2  -  FANTOM5 CAGE", "ExPecto  -  GTEx")
+
+best_track <- function(x, mdl) {
+  z <- x[x$model == mdl, ]; if (!nrow(z)) return(NA_character_)
+  a <- aggregate(spearman ~ track, z, function(v) median(v, na.rm = TRUE))
+  a$track[which.max(a$spearman)]
 }
+fmt_p <- function(p) ifelse(p < 1e-16, "p < 1e-16",
+                     ifelse(p < 0.001, sprintf("p = %.1e", p), sprintf("p = %.3f", p)))
 
-pairwise <- function(D, method) {
-  M <- D$M; gm <- lapply(M, rowMeans); gm$fantom <- D$fan
-  src <- names(gm); tgt <- c(names(M), "fantom")
-  R <- matrix(NA_real_, length(src), length(tgt), dimnames = list(src, tgt))
-  loo <- function(X) { N <- ncol(X); rs <- rowSums(X)
-    vapply(seq_len(N), function(i) cor((rs - X[,i])/(N-1), X[,i], method = method), numeric(1)) }
-  for (s in src) for (t in tgt) {
-    R[s, t] <-
-      if (t == "fantom") { if (s == "fantom") NA_real_
-                           else cor(gm[[s]], D$fan, method = method, use = "complete.obs") }
-      else if (s == t)   median(loo(M[[t]]))
-      else               median(apply(M[[t]], 2, function(col)
-                                 cor(gm[[s]], col, method = method, use = "complete.obs")))
+build <- function(metric) {
+  diffs <- list(); stats <- list()
+  for (co in COHORT_LEV) {
+    x <- d[d$cohort == co, ]; is_blood <- grepl("Blood", co)
+    for (pi in seq_along(PAIRS)) {
+      p <- PAIRS[[pi]]
+      bt <- best_track(x, p$model); if (is.na(bt)) next
+      gmn <- if (is_blood) p$gm_blood else p$gm_brain
+      m <- x[x$model == p$model & x$track == bt, c("sample", metric)]
+      g <- x[x$track == gmn,                     c("sample", metric)]
+      names(m)[2] <- "model"; names(g)[2] <- "genemean"
+      j <- merge(m, g, by = "sample")
+      j <- j[is.finite(j$model) & is.finite(j$genemean), ]
+      if (nrow(j) < 5) next
+      lab <- PAIR_LEV[pi]
+      diffs[[paste(co, p$model)]] <- data.frame(cohort = co, pair = lab, model = p$model,
+                                                diff = j$model - j$genemean, stringsAsFactors = FALSE)
+      w <- wilcox.test(j$model, j$genemean, paired = TRUE)
+      stats[[paste(co, p$model)]] <- data.frame(cohort = co, pair = lab, model = p$model, track = bt,
+        n = nrow(j), med = median(j$model - j$genemean), pct_model_higher = 100 * mean(j$model > j$genemean),
+        p = w$p.value, stringsAsFactors = FALSE)
+    }
   }
-  R
-}
+  D <- do.call(rbind, diffs); S <- do.call(rbind, stats)
+  S$p_bonf <- pmin(1, S$p * nrow(S))
+  S$txt <- sprintf("median %+.3f   %s", S$med, fmt_p(S$p_bonf))
 
-BR <- prep("Null/mats.rds",       c("lbp_liv","lbp_pm","msbb","rosmap","gtex"),
-           "tss_hg38_mane_expressed_brain.bed", "fantom_brain_mean", "BRAIN")
-BL <- prep("Null/mats_blood.rds", c("lbp_blood","covid_blood","gtex_blood"),
-           "tss_hg38_mane_expressed_blood.bed", "fantom_blood_mean", "BLOOD")
-n_brain <- length(BR$panel); n_blood <- length(BL$panel)
+  D$pair   <- factor(D$pair,   levels = rev(PAIR_LEV)); S$pair   <- factor(S$pair,   levels = rev(PAIR_LEV))
+  D$cohort <- factor(D$cohort, levels = COHORT_LEV);    S$cohort <- factor(S$cohort, levels = COHORT_LEV)
+  D$model  <- factor(D$model,  levels = names(fam_cols)); S$model <- factor(S$model, levels = names(fam_cols))
 
-brain_sp <- pairwise(BR,"spearman"); brain_pe <- pairwise(BR,"pearson")
-blood_sp <- pairwise(BL,"spearman"); blood_pe <- pairwise(BL,"pearson")
-for (nm in c("brain_sp","brain_pe","blood_sp","blood_pe"))
-  write.csv(round(get(nm), 3), file.path(OUT_DIR, sprintf("transfer_%s_scoredpanel.csv", nm)))
+  rng <- range(D$diff, na.rm = TRUE); pad <- diff(rng) * 0.55
+  ylab_expr <- if (metric == "spearman")
+      expression("Difference in cross-gene Spearman " * rho * "  (model - gene mean)") else
+      expression("Difference in cross-gene Pearson " * italic(r) * "  (model - gene mean)")
 
-brain_ord <- c("lbp_liv","lbp_pm","msbb","rosmap","gtex","fantom")
-blood_ord <- c("lbp_blood","covid_blood","gtex_blood","fantom")
-labs_nice <- c(lbp_liv="LBP living", lbp_pm="LBP postmortem", msbb="MSBB",
-               rosmap="ROSMAP", gtex="GTEx", lbp_blood="LBP living",
-               covid_blood="Mount Sinai Covid19 Study", gtex_blood="GTEx",
-               fantom="FANTOM5 CAGE")
-lims <- c(floor(min(brain_sp, brain_pe, blood_sp, blood_pe, na.rm=TRUE)*10)/10, 1)
-cols <- c("#FFF7EC", "#FDBB84", "#D7301F")
-
-make_hm <- function(M, ord, title) {
-  df <- as.data.frame(as.table(M)); names(df) <- c("source","target","val")
-  df <- df[df$source %in% ord & df$target %in% ord, ]
-  df$source <- factor(labs_nice[as.character(df$source)], levels = rev(labs_nice[ord]))
-  df$target <- factor(labs_nice[as.character(df$target)], levels = labs_nice[ord])
-  ggplot(df, aes(target, source, fill = val)) +
-    geom_tile(colour = "white", linewidth = 0.6) +
-    geom_text(data = df[is.finite(df$val), ],
-              aes(label = sprintf("%.2f", val)), colour = "grey15", size = 3.2, show.legend = FALSE) +
-    scale_fill_gradientn(colours = cols, limits = lims, name = "Median Correlation",
-                         na.value = "grey92") +
-    coord_fixed() + labs(title = title, x = "target", y = "source (gene mean)") +
+  p <- ggplot(D, aes(pair, diff, fill = model)) +
+    geom_hline(yintercept = 0, colour = "grey35", linewidth = 0.5) +
+    geom_violin(scale = "width", width = 0.85, alpha = 0.55, colour = NA, trim = TRUE) +
+    geom_boxplot(width = 0.14, outlier.size = 0.2, alpha = 0.95,
+                 colour = "grey20", linewidth = 0.3, show.legend = FALSE) +
+    geom_text(data = S, aes(pair, y = rng[2] + pad * 0.10, label = txt),
+              hjust = 0, size = 2.8, colour = "grey25", inherit.aes = FALSE) +
+    scale_fill_manual(values = fam_cols, drop = TRUE, name = NULL) +
+    coord_flip(ylim = c(rng[1] - pad * 0.05, rng[2] + pad)) +
+    facet_wrap(~ cohort, ncol = 2) +
+    labs(x = NULL, y = ylab_expr) +
     theme_minimal(base_size = 11) +
-    theme(panel.grid = element_blank(), plot.title = element_text(face = "bold"),
-          axis.text.x = element_text(angle = 30, hjust = 1))
+    theme(panel.grid.major.y = element_blank(), legend.position = "top",
+          strip.text = element_text(face = "bold"))
+
+  fn <- sprintf("paired_diff_model_vs_training_genemean_qc_%s", metric)
+  ggsave(file.path(PLOT_DIR, paste0(fn, ".pdf")), p, width = 13, height = 7)
+  ggsave(file.path(PLOT_DIR, paste0(fn, ".png")), p, width = 13, height = 7, dpi = 300)
+  cat("\n=== ", metric, " ===\n", sep = "")
+  print(as.data.frame(S[, c("cohort", "pair", "n", "med", "pct_model_higher", "p", "p_bonf")]), row.names = FALSE, digits = 3)
+  cat("saved: ", fn, ".pdf/.png\n", sep = "")
 }
 
-p1 <- make_hm(brain_sp, brain_ord, "Brain: Cross-gene Spearman Correlation")
-p2 <- make_hm(brain_pe, brain_ord, "Brain: Cross-gene Pearson Correlation")
-p3 <- make_hm(blood_sp, blood_ord, "Blood: Cross-gene Spearman Correlation")
-p4 <- make_hm(blood_pe, blood_ord, "Blood: Cross-gene Pearson Correlation")
-
-combined <- (p1 | p2) / (p3 | p4) + plot_layout(guides = "collect") +
-  plot_annotation(
-    title    = "Cross-Gene Correlations of Gene-mean Approach (diagonal = LOO)",
-    subtitle = sprintf("scored panel: %d brain genes, %d blood genes. FANTOM5 has no individuals, so its target column is a gene-mean-to-gene-mean correlation and its diagonal is blank.",
-                       n_brain, n_blood),
-    theme = theme(plot.title = element_text(face="bold", size=14),
-                  plot.subtitle = element_text(size=9)))
-
-ggsave(file.path(PLOT_DIR,"transfer_heatmaps_2x2_scoredpanel.pdf"), combined, width=14, height=11.5)
-ggsave(file.path(PLOT_DIR,"transfer_heatmaps_2x2_scoredpanel.png"), combined, width=14, height=11.5, dpi=300)
-cat("\nsaved transfer_heatmaps_2x2_scoredpanel.pdf/.png\n")
+for (mt in c("spearman", "pearson")) build(mt)

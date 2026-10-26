@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-## Paired Wilcoxon tests behind Fig. 2: each model against the gene-mean baseline
+## Paired Wilcoxon tests behind Supp. Fig. 3: each model against the gene-mean baseline
 ## built from its own training data (FANTOM5 CAGE for Enformer and Basenji2,
 ## GTEx for ExPecto), per cohort. Writes the test table for the supplement.
 suppressPackageStartupMessages({library(dplyr)})

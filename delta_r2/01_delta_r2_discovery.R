@@ -2,17 +2,19 @@
 ## How much does each model add to a gene mean from another cohort?
 ## Shared gene panel (13,061 brain / 10,562 blood).
 ##   null <- lm(observed ~ gene_mean);  full <- lm(observed ~ dl + gene_mean)
-## Draws Fig. 4 and writes the Supp. Table 1 summary.
-## All gene means come from other cohorts (an LBP LOO gene mean would be circular):
-##   Brain: GTEx, ROSMAP, MSBB      Blood: GTEx, COVID-19
+## Gene means never come from the study cohort itself:
+##   Brain (LBP LIV): GTEx, ROSMAP, MSBB, LBP PM, FANTOM5 CAGE
+##   Blood (LBP LIV): GTEx, COVID-19, FANTOM5 CAGE
+## FANTOM5 gene mean = log2(mean CAGE TPM + 1), matched by gene symbol, as in the scoring.
+## Writes the tables behind Fig. 2 (brain), Supp. Fig. 5 (blood rows) and Supp. Tables 2-3.
 ## ============================================================================
-library(arrow); library(ggplot2); library(dplyr)
+library(arrow); library(dplyr)
 arrow::set_cpu_count(1); arrow::set_io_thread_count(1)
 
 source("config/paths.R")   # BASE, PLOT_DIR, FANTOM5_MEANS
-OUT_DIR  <- file.path(BASE, "evaluation", "complementarity")
-dir.create(PLOT_DIR, showWarnings = FALSE, recursive = TRUE)
-dir.create(OUT_DIR,  showWarnings = FALSE, recursive = TRUE)
+OUT_DIR <- file.path(BASE, "evaluation", "complementarity")
+dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
+FANTOM  <- read.csv(FANTOM5_MEANS, stringsAsFactors = FALSE)
 
 z <- function(x) (x - mean(x)) / sd(x)
 P <- function(...) file.path(BASE, "predictions", ...)
@@ -20,8 +22,8 @@ P <- function(...) file.path(BASE, "predictions", ...)
 CFG <- list(
   brain = list(bed = "tss_hg38_mane_expressed_brain.bed",
                mats = "Null/mats.rds", obs = "lbp_liv",
-               smap = "sample_mapping.tsv", hdr = TRUE,
-               gms = c(GTEx = "gtex", ROSMAP = "rosmap", MSBB = "msbb"),
+               smap = "sample_mapping.tsv", hdr = TRUE, fcol = "fantom_brain_mean",
+               gms = c(GTEx = "gtex", ROSMAP = "rosmap", MSBB = "msbb", `LBP PM` = "lbp_pm"),
                models = list(
                  Enformer = list(dirs = P("enformer_expanded_personal_brain"), log = TRUE),
                  Basenji2 = list(dirs = P("basenji2_expanded_personal_brain"), log = TRUE),
@@ -30,7 +32,7 @@ CFG <- list(
                  Xpresso  = list(dirs = P("xpresso_expanded_personal_brain"),  log = FALSE))),
   blood = list(bed = "tss_hg38_mane_expressed_blood.bed",
                mats = "Null/mats_blood.rds", obs = "lbp_blood",
-               smap = "samples_blood.tsv", hdr = FALSE,
+               smap = "samples_blood.tsv", hdr = FALSE, fcol = "fantom_blood_mean",
                gms = c(GTEx = "gtex_blood", `COVID-19` = "covid_blood"),
                models = list(
                  Enformer = list(dirs = P("enformer_expanded_personal_blood"), log = TRUE),
@@ -91,8 +93,8 @@ for (tis in names(CFG)) {
   ## gene panel: bed genes present in observed AND every gene-mean source, with a FANTOM5 symbol match
   panel <- intersect(bed$gene_id, rownames(obs_full))
   for (k in cfg$gms) panel <- intersect(panel, rownames(matsL[[k]]))
-  panel <- panel[bed$gene_name[match(panel, bed$gene_id)] %in%
-                 read.csv(FANTOM5_MEANS, stringsAsFactors = FALSE)$gene]   # FANTOM5 symbol match, as in cross_gene_correlation
+  sym   <- bed$gene_name[match(panel, bed$gene_id)]
+  panel <- panel[sym %in% FANTOM$gene]; sym <- bed$gene_name[match(panel, bed$gene_id)]
 
   ## samples with a valid (non-all-NA) parquet in all four models
   sm   <- read.delim(file.path(BASE, cfg$smap), header = cfg$hdr, stringsAsFactors = FALSE)
@@ -105,12 +107,10 @@ for (tis in names(CFG)) {
   samp <- cand[ok]
 
   obs <- obs_full[panel, samp, drop = FALSE]
+  GM <- c(lapply(cfg$gms, function(k) rowMeans(matsL[[k]][panel, , drop = FALSE], na.rm = TRUE)),
+          list(`FANTOM5 CAGE` = log2(FANTOM[[cfg$fcol]][match(sym, FANTOM$gene)] + 1)))
   cat(sprintf("\n=== %s: %d genes x %d samples | gene means: %s ===\n",
-              tis, length(panel), length(samp), paste(names(cfg$gms), collapse = ", ")))
-
-  GM <- lapply(cfg$gms, function(k)
-          rowMeans(matsL[[k]][panel, , drop = FALSE], na.rm = TRUE))
-  names(GM) <- names(cfg$gms)
+              tis, length(panel), length(samp), paste(names(GM), collapse = ", ")))
 
   for (mn in names(cfg$models)) {
     spec <- cfg$models[[mn]]
@@ -120,7 +120,7 @@ for (tis in names(CFG)) {
     for (gname in names(GM)) {
       r <- as.data.frame(run_all(o, L$mat, GM[[gname]]))
       r$sample <- rownames(r); rownames(r) <- NULL
-      r$model <- mn; r$gene_mean <- gname
+      r$model <- mn; r$gene_mean <- gname; r$track <- L$track
       r$tissue <- if (tis == "brain") "Brain" else "Blood"
       out[[paste(tis, mn, gname)]] <- r
     }
@@ -138,41 +138,4 @@ cat("\n=== medians across samples (shared panel) ===\n")
 print(as.data.frame(summ), row.names = FALSE, digits = 3)
 write.csv(res,  file.path(OUT_DIR, "dR2_external_genemeans_shared.csv"),         row.names = FALSE)
 write.csv(summ, file.path(OUT_DIR, "dR2_external_genemeans_shared_summary.csv"), row.names = FALSE)
-
-res$model  <- factor(res$model,  levels = c("Enformer","Basenji2","ExPecto","Xpresso"))
-res$tissue <- factor(res$tissue, levels = c("Brain","Blood"))
-GM_LEV  <- c("GTEx","ROSMAP","MSBB","COVID-19")
-gm_cols <- c(GTEx = "#7048E8", ROSMAP = "#0CA678", MSBB = "#F59F00", `COVID-19` = "#E03131")
-res$gene_mean <- factor(res$gene_mean, levels = GM_LEV)
-
-med <- summ
-med$model     <- factor(med$model,  levels = levels(res$model))
-med$tissue    <- factor(med$tissue, levels = levels(res$tissue))
-med$gene_mean <- factor(med$gene_mean, levels = GM_LEV)
-med <- med %>% group_by(tissue, model) %>% arrange(gene_mean, .by_group = TRUE) %>%
-  mutate(vjust = 1.7 + 1.6 * (row_number() - 1)) %>% ungroup()
-
-p <- ggplot(res, aes(dR2, fill = gene_mean)) +
-  geom_histogram(bins = 45, position = "identity", alpha = 0.55, colour = NA) +
-  geom_vline(data = med, aes(xintercept = dR2, colour = gene_mean),
-             linetype = "dashed", linewidth = 0.5, show.legend = FALSE) +
-  geom_text(data = med,
-            aes(x = Inf, y = Inf,
-                label = sprintf("%s  %.2f%%", as.character(gene_mean), pct_added),
-                colour = gene_mean),
-            hjust = 1.08, vjust = med$vjust, size = 3, show.legend = FALSE) +
-  scale_fill_manual(values = gm_cols, drop = TRUE, name = NULL) +
-  scale_colour_manual(values = gm_cols, drop = TRUE) +
-  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  facet_grid(tissue ~ model, scales = "free_y") +
-  labs(title = "Extra cross-gene variance explained by adding the model to an external gene mean",
-       subtitle = expression("shared gene panel; one value per sample; dashed lines and corner labels are the median " * Delta * italic(R)^2),
-       x = expression("Additional variance explained (" * Delta * italic(R)^2 * ")"),
-       y = "samples") +
-  theme_bw(base_size = 11) +
-  theme(legend.position = "top", strip.text = element_text(face = "bold"),
-        plot.title = element_text(face = "bold"))
-
-ggsave(file.path(PLOT_DIR, "delta_rsquared_external_genemeans_shared.pdf"), p, width = 13, height = 7)
-cat("\nsaved delta_rsquared_external_genemeans_shared.pdf\n")
-#        Brain   Xpresso      ROSMAP   0.509  0.517  0.829   0.714     0.688     0.094
+cat("\nFig. 2 and Supp. Fig. 5 are drawn by figures/Fig2.R and figures/SuppFig5.R\n")
