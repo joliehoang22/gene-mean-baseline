@@ -1,6 +1,6 @@
 # gene_mean_baseline
 
-These scripts compute the observed expression for each cohort and the gene-mean baselines. 
+These scripts prepare the measured gene expression that the model predictions are compared with. Scripts 01 and 02 put every cohort's RNA-seq data on the same scale and keep the genes found in all cohorts and expressed in GTEx (TPM ≥ 1 in at least 25% of GTEx samples). A cohort's gene-mean baseline is each gene's average expression across that cohort's samples; the scoring scripts calculate it from these files. Script 03 calculates the FANTOM5 gene-mean baseline.
 
 | File | Description |
 |------|-------------|
