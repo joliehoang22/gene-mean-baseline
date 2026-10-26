@@ -8,7 +8,7 @@ arguments. Driven by model_predictions/lsf/run_reference_enformer.sh.
       --tss_bed $PROJECT_DIR/tss_hg38_mane_expressed_brain.bed \
       --out_dir $PROJECT_DIR/predictions/enformer_reference_expanded_brain
 """
-import argparse, glob, os
+import argparse, os
 import numpy as np
 import pandas as pd
 import pyfaidx

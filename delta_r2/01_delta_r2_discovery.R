@@ -27,8 +27,7 @@ CFG <- list(
                models = list(
                  Enformer = list(dirs = P("enformer_expanded_personal_brain"), log = TRUE),
                  Basenji2 = list(dirs = P("basenji2_expanded_personal_brain"), log = TRUE),
-                 ExPecto  = list(dirs = c(P("expecto_expanded_personal_brain_gpu"),
-                                          P("expecto_expanded_personal_brain")), log = FALSE),
+                 ExPecto  = list(dirs = P("expecto_expanded_personal_brain"),  log = FALSE),
                  Xpresso  = list(dirs = P("xpresso_expanded_personal_brain"),  log = FALSE))),
   blood = list(bed = "tss_hg38_mane_expressed_blood.bed",
                mats = "Null/mats_blood.rds", obs = "lbp_blood",
@@ -37,14 +36,10 @@ CFG <- list(
                models = list(
                  Enformer = list(dirs = P("enformer_expanded_personal_blood"), log = TRUE),
                  Basenji2 = list(dirs = P("basenji2_expanded_personal_blood"), log = TRUE),
-                 ExPecto  = list(dirs = c(P("expecto_expanded_personal_blood"),
-                                          P("expecto_expanded_personal_blood_gpu")), log = FALSE),
+                 ExPecto  = list(dirs = P("expecto_expanded_personal_blood"),  log = FALSE),
                  Xpresso  = list(dirs = P("xpresso_expanded_personal_blood"),  log = FALSE))))
 
-pick <- function(dirs, s) {
-  for (d in dirs) { f <- file.path(d, paste0(s, ".parquet")); if (file.exists(f)) return(f) }
-  NA_character_
-}
+pick <- function(dir, s) { f <- file.path(dir, paste0(s, ".parquet")); if (file.exists(f)) f else NA_character_ }
 
 load_dl <- function(dirs, panel, samp, log_pred, obs_profile) {
   files <- vapply(samp, function(s) pick(dirs, s), character(1))

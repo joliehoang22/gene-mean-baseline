@@ -17,7 +17,6 @@
 ## OUTPUTS (Null/)
 ##   mats_blood.rds        list(gtex_blood, lbp_blood, covid_blood), restricted to genes_blood
 ##   genes_blood.rds       expression-filtered common gene universe
-##   gene_means_blood.rds  per-cohort gene-mean vector
 ################################################################################
 
 library(data.table)
@@ -66,10 +65,6 @@ collapse_by_mean <- function(mat) {
 cat("GTEx Whole Blood...\n")
 gtex_tpm  <- fread(GTEX_TPM_FILE, data.table = FALSE)
 gtex_meta <- fread(GTEX_META_FILE, data.table = FALSE)
-
-## confirm the tissue label matches exactly before subsetting
-avail <- sort(unique(gtex_meta$SMTSD[grepl("blood", gtex_meta$SMTSD, ignore.case = TRUE)]))
-cat("  blood-like SMTSD labels:", paste(avail, collapse = " | "), "\n")
 stopifnot(GTEX_TISSUE %in% gtex_meta$SMTSD)
 
 wb_cols  <- intersect(gtex_meta$SAMPID[gtex_meta$SMTSD == GTEX_TISSUE],
@@ -123,15 +118,12 @@ genes_blood <- intersect(common, expressed)
 cat("\ncommon genes:", length(common),
     "| after expr filter:", length(genes_blood), "\n")
 
-mats             <- lapply(mats, function(m) m[genes_blood, , drop = FALSE])
-gene_means_blood <- lapply(mats, rowMeans)
+mats <- lapply(mats, function(m) m[genes_blood, , drop = FALSE])
 print(sapply(mats, dim))
 
 ## ── save ────────────────────────────────────────────────────────────────────
-saveRDS(mats,             file.path(OUT_DIR, "mats_blood.rds"))
-saveRDS(genes_blood,      file.path(OUT_DIR, "genes_blood.rds"))
-saveRDS(gene_means_blood, file.path(OUT_DIR, "gene_means_blood.rds"))
-saveRDS(gtex_blood,       file.path(OUT_DIR, "gtex_blood_log10tpm_full.rds"))
+saveRDS(mats,        file.path(OUT_DIR, "mats_blood.rds"))
+saveRDS(genes_blood, file.path(OUT_DIR, "genes_blood.rds"))
 
 cat("\nSaved to", OUT_DIR, "\n")
 cat("Next: 03_fantom5_gene_means.R\n")

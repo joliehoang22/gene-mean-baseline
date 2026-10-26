@@ -42,7 +42,7 @@ def main():
 
     print(f"Sample: {args.vcf_id} / {args.expr_id}")
 
-    tracks = B.load_brain_tracks()
+    tracks = B.load_tracks()
     names = B.track_names(tracks)
 
     tss_df = B.load_tss_bed(args.tss_bed)

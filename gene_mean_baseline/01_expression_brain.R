@@ -20,9 +20,6 @@
 ## OUTPUTS (all under Null/)
 ##   mats.rds         list of 5 matrices, restricted to `genes`
 ##   genes.rds        expression-filtered common gene universe
-##   common.rds       genes present in all 5 (pre-filter)
-##   gene_means.rds   per-dataset gene-mean vector
-##   gtex_log10tpm_full.rds   unfiltered GTEx, for threshold sweeps
 ################################################################################
 
 library(data.table)
@@ -113,9 +110,6 @@ cat("  living:", ncol(liv_counts), " postmortem:", ncol(pm_counts), "\n")
 
 lbp_liv_log10tpm <- counts_to_log10tpm(liv_counts, len30)
 lbp_pm_log10tpm  <- counts_to_log10tpm(pm_counts,  len30)
-
-write.table(lbp_liv_log10tpm, file.path(BASE, "lbp_liv_log10tpm.txt"),
-            sep = "\t", quote = FALSE, col.names = NA)
 rm(lbp_raw); gc()
 
 ## ── common universe + expression filter ─────────────────────────────────────
@@ -126,24 +120,18 @@ mats <- list(gtex    = gtex_log10tpm,
              msbb    = msbb_log10tpm)
 
 common    <- Reduce(intersect, lapply(mats, rownames))
-## The inverse has to use the same log base as above. With log10 data and a 2^
-## inverse, the TPM threshold would be wrong and `genes` would change size.
 gtex_lin  <- 10^gtex_log10tpm - 1                      # back to linear TPM
 expressed <- rownames(gtex_lin)[rowMeans(gtex_lin >= TPM_MIN) >= FRAC_SAMPLES]
 genes     <- intersect(common, expressed)
 cat("\ncommon genes:", length(common),
     "| after expr filter:", length(genes), "\n")
 
-mats       <- lapply(mats, function(m) m[genes, , drop = FALSE])
-gene_means <- lapply(mats, rowMeans)
+mats <- lapply(mats, function(m) m[genes, , drop = FALSE])
 print(sapply(mats, dim))
 
 ## ── save ────────────────────────────────────────────────────────────────────
-saveRDS(mats,         file.path(OUT_DIR, "mats.rds"))
-saveRDS(genes,        file.path(OUT_DIR, "genes.rds"))
-saveRDS(common,       file.path(OUT_DIR, "common.rds"))
-saveRDS(gene_means,   file.path(OUT_DIR, "gene_means.rds"))
-saveRDS(gtex_log10tpm, file.path(OUT_DIR, "gtex_log10tpm_full.rds"))  # for sweeps
+saveRDS(mats,  file.path(OUT_DIR, "mats.rds"))
+saveRDS(genes, file.path(OUT_DIR, "genes.rds"))
 
 cat("\nSaved to", OUT_DIR, "\n")
 cat("Next: 02_expression_blood.R\n")

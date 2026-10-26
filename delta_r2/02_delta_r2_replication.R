@@ -14,6 +14,7 @@ source("config/paths.R")   # BASE, PLOT_DIR, FANTOM5_MEANS
 OUT_DIR <- file.path(BASE, "evaluation", "complementarity")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 FANTOM  <- read.csv(FANTOM5_MEANS, stringsAsFactors = FALSE)
+FLAGGED <- read.csv(file.path(BASE, "evaluation/allcohorts/flagged_low_genemean_samples.csv"), stringsAsFactors = FALSE)
 
 z <- function(x) (x - mean(x)) / sd(x)
 R <- function(...) file.path(BASE, "Replication", ...)
@@ -26,8 +27,7 @@ CFG <- list(
     models = list(
       Enformer = list(dirs = R("ROSMAP/predictions/enformer_expanded_personal_brain"), log = TRUE),
       Basenji2 = list(dirs = R("ROSMAP/predictions/basenji2_expanded_personal_brain"), log = TRUE),
-      ExPecto  = list(dirs = c(R("ROSMAP/predictions/expecto_expanded_personal_brain"),
-                               R("ROSMAP/predictions/expecto_expanded_personal_brain_gpu")), log = FALSE),
+      ExPecto  = list(dirs = R("ROSMAP/predictions/expecto_expanded_personal_brain"),  log = FALSE),
       Xpresso  = list(dirs = R("ROSMAP/predictions/xpresso_expanded_personal_brain"),  log = FALSE))),
   `COVID Blood` = list(
     bed = "tss_hg38_mane_expressed_blood.bed", mats = "Null/mats_blood.rds", obs = "covid_blood",
@@ -36,14 +36,10 @@ CFG <- list(
     models = list(
       Enformer = list(dirs = R("COVID/predictions/enformer_expanded_personal_blood"), log = TRUE),
       Basenji2 = list(dirs = R("COVID/predictions/basenji2_expanded_personal_blood"), log = TRUE),
-      ExPecto  = list(dirs = c(R("COVID/predictions/expecto_expanded_personal_blood"),
-                               R("COVID/predictions/expecto_expanded_personal_blood_gpu")), log = FALSE),
+      ExPecto  = list(dirs = R("COVID/predictions/expecto_expanded_personal_blood"),  log = FALSE),
       Xpresso  = list(dirs = R("COVID/predictions/xpresso_expanded_personal_blood"),  log = FALSE))))
 
-pick <- function(dirs, s) {
-  for (d in dirs) { f <- file.path(d, paste0(s, ".parquet")); if (file.exists(f)) return(f) }
-  NA_character_
-}
+pick <- function(dir, s) { f <- file.path(dir, paste0(s, ".parquet")); if (file.exists(f)) f else NA_character_ }
 
 load_dl <- function(dirs, panel, samp, log_pred, obs_profile) {
   files <- vapply(samp, function(s) pick(dirs, s), character(1))
@@ -102,14 +98,7 @@ for (coh in names(CFG)) {
     v <- tryCatch(as.data.frame(read_parquet(f))[[1]], error = function(e) NA)
     !all(is.na(v))
   }, logical(1))), logical(1))
-  samp <- cand[ok]
-  ## --- QC: drop flagged samples (the samples flagged by cross_gene_correlation/01_score_all_cohorts.R) ---
-  .exf <- file.path(BASE, "evaluation/allcohorts/flagged_low_genemean_samples.csv")
-  if (!exists(".EXCL")) .EXCL <- if (file.exists(.exf)) read.csv(.exf, stringsAsFactors = FALSE) else data.frame(sample = character(0))
-  if (nrow(.EXCL) && any(samp %in% .EXCL$sample)) {
-    cat(sprintf("  [QC] dropping %d flagged sample(s) from %s\n", sum(samp %in% .EXCL$sample), coh))
-    samp <- samp[!(samp %in% .EXCL$sample)]
-  }
+  samp <- setdiff(cand[ok], FLAGGED$sample)   # QC: samples flagged by cross_gene_correlation/01
 
   obs <- obs_full[panel, samp, drop = FALSE]
   GM <- c(lapply(cfg$gms, function(k) rowMeans(matsL[[k]][panel, , drop = FALSE], na.rm = TRUE)),

@@ -32,7 +32,7 @@ REF = os.environ.get("HG38_FASTA", f"{BASE}/ref_genome/hg38.fa")
 VCF_DIR = os.environ.get("GFM_VCF_DIR", f"{BASE}/phased_vcfs")
 TSS_BED = f"{BASE}/tss_hg38_mane_expressed_brain.bed"
 TARGETS = f"{BASE}/targets_human.txt"
-BRAIN_TRACKS_FILE = f"{BASE}/brain_tracks.txt"
+TRACKS_FILE = f"{BASE}/brain_tracks.txt"                          # 7 brain CAGE
 
 BASENJI_DIR = os.path.join(os.environ["PEB_REPO"], "basenji2")
 PARAMS = f"{BASENJI_DIR}/resources/params_human.json"
@@ -145,13 +145,13 @@ def chrom_order(df):
 
 
 # ── tracks ───────────────────────────────────────────────────────────────────
-def load_brain_tracks():
+def load_tracks():
     """Read the 7 brain CAGE indices from brain_tracks.txt."""
-    with open(BRAIN_TRACKS_FILE) as f:
+    with open(TRACKS_FILE) as f:
         txt = f.read().strip().strip("[]")
     idx = [int(x) for x in txt.replace(",", " ").split()]
     if not idx:
-        raise ValueError(f"no track indices parsed from {BRAIN_TRACKS_FILE}")
+        raise ValueError(f"no track indices parsed from {TRACKS_FILE}")
     return idx
 
 

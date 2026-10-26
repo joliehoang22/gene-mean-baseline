@@ -4,9 +4,8 @@ For each sample, these scripts compute the cross-gene Spearman and Pearson corre
 
 | File | Description |
 |------|-------------|
-| `01_score_all_cohorts.R` | Scores every arm in all four cohorts, after dropping samples whose expression barely correlates with their own cohort's leave-one-out gene mean (two COVID-19 samples). Writes `arm_scores_allcohorts_qcexact.csv` |
-| `02_score_personal_vs_reference.R` | Adds the reference-genome arm. Writes `arm_scores_allcohorts_withref.csv` |
-| `03_wilcoxon_training_genemean.R` | Paired Wilcoxon tests of each model against the gene-mean baseline from its own training data (Supp. Fig. 3) |
-| `04_paired_stats.R` | Paired t-tests quoted in the text, at participant level (a participant's samples averaged), plus every model vs every outside baseline |
+| `01_score_all_cohorts.R` | Scores every model track and the gene-mean baselines in Fig. 1, after dropping samples whose expression barely correlates with their own cohort's leave-one-out gene mean (two COVID-19 samples). Writes `arm_scores_allcohorts_qcexact.csv` |
+| `02_score_personal_vs_reference.R` | Scores every model track with personalized and with reference-genome predictions. Writes `arm_scores_allcohorts_withref.csv` |
+| `03_paired_stats.R` | The 48 paired t-tests in the text (every model vs every gene-mean baseline in each cohort), at participant level (a participant's samples averaged) |
 
-A sample is kept only if it has genotypes and a usable prediction from all four models, so every model is scored on the same samples. The genes are those present in every gene-mean source, resulting in 13,061 brain genes and 10,562 blood genes.
+A sample is kept only if it has genotypes and a usable prediction from all four models, so every model is scored on the same samples. The genes are those present in every gene-mean source, FANTOM5 included, resulting in 13,061 brain genes and 10,562 blood genes. The paired Wilcoxon tests in Fig. 3 and Supp. Fig. 3 are run by the figure scripts.

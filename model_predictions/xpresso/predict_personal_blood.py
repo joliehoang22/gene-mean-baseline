@@ -11,8 +11,8 @@ the model itself:
 Both arms are run in one pass. Building the haplotype FASTAs with bcftools takes
 most of the run time (Xpresso itself has ~1M parameters), so the second model
 call adds very little. Writes two parquets per sample:
-    predictions/xpresso_seqonly_mane/<expr_id>.parquet
-    predictions/xpresso_full_mane/<expr_id>.parquet
+    <out_dir>/<expr_id>.parquet        sequence only (used in the paper)
+    <out_dir>_full/<expr_id>.parquet   with half-life features
 """
 
 import argparse

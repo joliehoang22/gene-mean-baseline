@@ -40,7 +40,7 @@ def main():
     tss_df = B.load_tss_bed(args.tss_bed)
     print(f"Panel: {os.path.basename(args.tss_bed)}  ({len(tss_df)} genes)")
 
-    tracks = B.load_brain_tracks()
+    tracks = B.load_tracks()
     names = B.track_names(tracks)
     print("Brain tracks:")
     for i, n in zip(tracks, names):
