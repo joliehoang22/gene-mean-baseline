@@ -80,7 +80,7 @@ for (co in names(CFG)) {
   }, logical(1))), logical(1))
   samp <- cand[ok]
 
-  ## QC: drop samples that barely match the cohort's own leave-one-out gene mean
+  ## QC: drop samples that barely match the cohort's own leave-one-out gene mean (only 2 samples were dropped in ROSMAP)
   o0  <- obs_full[panel, samp, drop=FALSE]; rs0 <- rowSums(o0); n0 <- ncol(o0)
   r0  <- vapply(seq_len(n0), function(i)
            cor((rs0 - o0[,i])/(n0-1), o0[,i], method="spearman", use="complete.obs"), numeric(1))
